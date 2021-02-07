@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>      /* Para el uso de funcion atof() */
+#include <math.h>
 
 #define MAXOP 100        /*  El operando solo puede tener expresarse en un maximo de 100 caracteres */
 #define NUMBER '0'       /*  Valor que funciona como señal de que un numero fue leido */
@@ -8,7 +9,8 @@
 int getop(char []);
 void push(double);
 double pop(void);
-
+void clear(void);
+int err;
 /* reverse Polish calculator */
 
 int main(void)
@@ -21,20 +23,23 @@ int main(void)
 			"polaca inversa. A continuacion se muestra un ejemplo de una operacion en notacion polaca inversa:     8 2 + 4 *\n\n"
 			"La operacion anterior es equivalente a la notacion infija:     (8 + 2) * 4\n\n"
 			"Es necesario que al ingresar la operacion en la herramienta separe los operandos de un operador con un espacio en blanco,\n"
-			"como se muestra en el ejemplo anterior.\n"
+			"como se muestra en el ejemplo anterior.\n\n"
+			"Esta herramienta tiene la opcion de realizar operaciones con numeros con signo; para identificar un numero con signo\n"
+			"es necesario que el signo anteceda al primer digito o punto decimal del mismo.\n"
 			"Despues de ingresar la operacion, la herramienta imprime el resultado del calculo realizado.\n\n"
 			"Considerar que la herramienta solo puede realizar las siguientes operaciones:\n\nOperador\tOperacion\n"
-			"+\t\tSuma\n-\t\tResta\n*\t\tMultiplicacion\n/\t\tDivision\nCualquier otra operador ingresado provoca un resultado erroneo.\n"
+			"+\t\tSuma\n-\t\tResta\n*\t\tMultiplicacion\n/\t\tDivision\n%%\t\tModulo\n"
+			"Cualquier otro operador o comando ingresado invalida la operacion del usuario.\n\n"
 			"Para salir de la herramienta, ingresar un caracter distinto a la letra \"S\".\n\n"
 			"--COMIENZA EL PROGRAMA--\n");
 	do
 	{
 		state = IN;
+		err = 0;
 		printf("Ingresa la operacion a realizar:");
-		while (state == IN)
-		{
+		while (state == IN) {
 			type = getop(s);
-			printf("%d\n", type); 
+			printf("%d\t%c\n", type, type); 
 			switch (type) {
 				case NUMBER:
 					push(atof(s));
@@ -53,24 +58,52 @@ int main(void)
 					op2 = pop();
 					if (op2 != 0.0)
 						push(pop() / op2);
-					else
+					else {
 						printf("error: el divisor es cero.\n");
+						err = 1;
+					}
+					break;
+				case '%':
+					op2 = pop();
+					if (op2 != 0.0)
+						push(fmod(pop(), op2));
+					else {
+						printf("error: en la operacion a %% n: n debe ser un numero diferente de 0.\n");
+						err = 1;
+					}
 					break;
 				case '\n':
-					printf ("El resultado es:%.8g\n", pop());
+					printf("El resultado es:%.8g\n", pop());
 					state = END;
 					break;
 				default:
 					printf("error: se introdujo comando desconocido:%s\n", s);
+					err = 1;
 					break;
+			}
+			if (err == 1) {
+			/* En caso de que la herramienta se encuentre con un error en una operacion sera util
+			ingresar a clear() para limpiar los operandos u operadores que hayan restado 
+			en la linea de entrada */
+				clear();
+				state = END;
 			}
 		}
 		printf("Para ingresar nuevamente la herramienta de operaciones matematicas, ingresar la letra \"S\":");
-		while ((type = getchar()) != '\n')
-			state = type;
+		type = getchar();
+		/* En dado caso que el usuario haya ingresado mas de un caracter, utilizamos la funcion clear
+		para limpiar esos caracteres indeseados en la entrada */
+		if (type != '\n')
+			clear();
 	}
-	while (state == 'S');
+	while (type == 'S');
 	return 0;
+}
+
+void clear(void)
+{
+	while(getchar() != '\n')
+		;
 }
 
 #define MAXVAL 100       /* espacio maximo en la pila */
@@ -105,18 +138,29 @@ void ungetch(int);
 /* getop: leer el siguiente operador u operando en la entrada */
 int getop(char s[])
 {
-	int i, c;
+	int i, c, d;
 	
 	while ((s[0] = c = getch()) == ' ' || c == '\t')
 		;
 	s[1] = '\0';
-	if (!isdigit(c) && c != '.')
-		return c;        /* no es un numero */
+	if (!isdigit(c) && c != '.' && c != '+' && c != '-')
+		return c;        /* no es un numero y no es el signo que antecede a un numero */
 	i = 0;
-	if (isdigit(c))      /* prueba requerida para recolectar la parte entera del numero en la entrada */
-		while (isdigit(s[++i] = c = getch()))
+	/* Prueba para determinar si el primer caracter leido es un signo de un numero en la entrada o 
+	si es un operador */
+	if (c == '-' || c == '+') { 
+		d = c;	
+		if (isdigit(c = getch()) || c == '.')	
+			s[++i] = c;
+		else {		/* Se valida que es un operador de suma o resta; se devuelve al control */
+			ungetch(c);
+			return d;
+		}
+	}
+	if (isdigit(c))   /* se prueba si el caracter en c es un digito de un numero */
+		while (isdigit(s[++i] = c = getch())) 
 			;
-	if (c == '.')		 /* prueba requerida para recolectar la parte decimal del numero en la entrada */
+	if (c == '.')	 /* prueba requerida para recolectar la parte decimal del numero en la entrada */
 		while (isdigit(s[++i] = c = getch()))
 			;
 	s[i] = '\0';
@@ -141,6 +185,3 @@ void ungetch(int c)			/* almacena los caracteres que se quieren devolver a la en
 	else
 		buf[bufp++] = c;
 }
-
-		
-			

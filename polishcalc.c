@@ -6,40 +6,49 @@
 #define NUMBER '0'       /*  Valor que funciona como señal de que un numero fue leido */
 #define END	1		     /*  Este valor indica al control del programa que una operacion ingresada ya fue realizada */
 #define IN 0			 /*  Este valor indica al control del programa que una operacion matematica esta siendo procesada */
+#define MAXVAR 6         /*  Numero de variables disponibles para el usuario */
 int getop(char []);
 void push(double);
 double pop(void);
-void clear(void);
-int err;
+void inputclear(void);
+void stclear(void);
+int getvar(void);
 /* reverse Polish calculator */
 
 int main(void)
 {
-	int type, state;
-	double op2;
+	int type, state, err;
+	double op2, var[MAXVAR] = {0.0};
 	char s[MAXOP];
 	printf("El presente programa provee una herramienta para realizar operaciones matematicas en numeros enteros o con parte decimal.\n"
 			"Para el uso correcto de esta herramienta, se requiere que el usuario ingrese las operaciones a realizar en notacion\n"
 			"polaca inversa. A continuacion se muestra un ejemplo de una operacion en notacion polaca inversa:     8 2 + 4 *\n\n"
 			"La operacion anterior es equivalente a la notacion infija:     (8 + 2) * 4\n\n"
-			"Es necesario que al ingresar la operacion en la herramienta separe los operandos de un operador con un espacio en blanco,\n"
-			"como se muestra en el ejemplo anterior.\n\n"
+			"Al ingresar una operacion es necesario separar los operandos de un operador con un espacio en blanco, como se muestra\n"
+			"en el ejemplo anterior.\n\n"
 			"Esta herramienta tiene la opcion de realizar operaciones con numeros con signo; para identificar un numero con signo\n"
-			"es necesario que el signo anteceda al primer digito o punto decimal del mismo.\n"
+			"es necesario que el signo anteceda al primer digito o punto decimal del mismo.\n\n"
+			"Es posible almacenar un numero o el resultado de una operacion en una de las %d variables disponibles, a continuacion\n"
+			"mostramos ejemplos de como almacenar distintos valores:\n-8.2 4.7 * 3.3 -10 + - > A\n-456.55 > B\n\n"
+			"El operador \">\" indica que el ultimo numero ingresado o el producto de una operacion sera almacenado en alguna de las\n"
+			"%d variables indicadas en el siguiente rango de letras mayusculas: A - F.\n"
+			"Para usar el valor de una variable, sera necesario escribir la letra correspondiente en una operacion; el programa\n"
+			"tomara el valor de la variable para el calculo.\n"
 			"Despues de ingresar la operacion, la herramienta imprime el resultado del calculo realizado.\n\n"
 			"Considerar que la herramienta solo puede realizar las siguientes operaciones:\n\nOperador\tOperacion\n"
-			"+\t\tSuma\n-\t\tResta\n*\t\tMultiplicacion\n/\t\tDivision\n%%\t\tModulo\n"
+			"+\t\tSuma\n-\t\tResta\n*\t\tMultiplicacion\n/\t\tDivision\n%%\t\tModulo\n^\t\tPotenciacion\n>\t\tAlmacenar dato en una variable\n"
 			"Cualquier otro operador o comando ingresado invalida la operacion del usuario.\n\n"
 			"Para salir de la herramienta, ingresar un caracter distinto a la letra \"S\".\n\n"
-			"--COMIENZA EL PROGRAMA--\n");
+			"--COMIENZA EL PROGRAMA--\n", MAXVAR, MAXVAR);
 	do
 	{
 		state = IN;
 		err = 0;
+		stclear();
 		printf("Ingresa la operacion a realizar:");
 		while (state == IN) {
 			type = getop(s);
-			printf("%d\t%c\n", type, type); 
+			/* printf("%d\t%c\n", type, (type != '\n') ? type : '-'); */
 			switch (type) {
 				case NUMBER:
 					push(atof(s));
@@ -71,6 +80,29 @@ int main(void)
 						printf("error: en la operacion a %% n: n debe ser un numero diferente de 0.\n");
 						err = 1;
 					}
+					break;	
+				case '^':
+					op2 = pop();
+					push(pow(pop(), op2));
+					break;
+				case '>':
+					type = getvar();
+					/* En caso de leer una variable, devuelve un numero entero distinto a -1;
+						-1 simboliza que no se tomo un valor valido que represente una variable */
+					op2 = pop();
+					if (type > 0) 
+						var[type - 'A'] = op2;
+					else
+						printf("error: no es posible almacenar el valor %.8g; la variable ingresada no es valida.\n", op2);
+					push(op2);
+					break;
+				case 'A':
+				case 'B':
+				case 'C':
+				case 'D':
+				case 'E':
+				case 'F': 
+					push(var[type - 'A']);
 					break;
 				case '\n':
 					printf("El resultado es:%.8g\n", pop());
@@ -85,7 +117,8 @@ int main(void)
 			/* En caso de que la herramienta se encuentre con un error en una operacion sera util
 			ingresar a clear() para limpiar los operandos u operadores que hayan restado 
 			en la linea de entrada */
-				clear();
+				inputclear();
+				stclear();
 				state = END;
 			}
 		}
@@ -93,14 +126,15 @@ int main(void)
 		type = getchar();
 		/* En dado caso que el usuario haya ingresado mas de un caracter, utilizamos la funcion clear
 		para limpiar esos caracteres indeseados en la entrada */
-		if (type != '\n')
-			clear();
+		if (type != '\n' && type != EOF)
+			inputclear();
 	}
 	while (type == 'S');
 	return 0;
 }
 
-void clear(void)
+/* inputclear: Limpia los caracteres en el flujo de entrada */
+void inputclear(void)
 {
 	while(getchar() != '\n')
 		;
@@ -128,6 +162,13 @@ double pop(void)
 		printf("error: pila vacia\n");
 		return 0.0;
 	}
+}
+
+/* stclear: Se restablece el indice de pila a su valor inicial, provocando que los valores
+	almacenados se eliminen al sobreescribir en los espacios ya ocupados */
+void stclear(void)
+{
+	sp = 0;
 }
 
 #include <ctype.h>
@@ -168,7 +209,7 @@ int getop(char s[])
 	return NUMBER;
 }
 
-#define BUFSIZE 100			/* espacio maximo en el buffer de caracteres devueltos a la entrada */ 
+#define BUFSIZE 10			/* espacio maximo en el buffer de caracteres devueltos a la entrada */ 
 
 char buf[BUFSIZE];			/* buffer para almacenar caracteres no deseados que se tomaron de la entrada */
 int bufp = 0;				/* indice del lugar disponible en el buffer */
@@ -184,4 +225,18 @@ void ungetch(int c)			/* almacena los caracteres que se quieren devolver a la en
 		printf("ungetch: el buffer esta lleno\n");
 	else
 		buf[bufp++] = c;
+}
+
+int getvar(void)
+{
+	int c;
+	while ((c = getchar()) == ' ' || c == '\t')
+		;
+	if (isupper(c) && c >= 'A' && c <= 'F')
+		return c;
+	else if (c == '\n')
+	/* En caso de que c sea una nueva linea, se tiene que guardar al arreglo que representa los 
+	caracteres que se devuelven a la entrada, para que se imprima el valor al principio de la pila */
+		ungetch(c);			
+	return -1;
 }
